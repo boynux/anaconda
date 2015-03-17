@@ -49,6 +49,9 @@ import (
 
 	"github.com/ChimeraCoder/tokenbucket"
 	"github.com/garyburd/go-oauth/oauth"
+
+    "appengine"
+    "appengine/urlfetch"
 )
 
 const (
@@ -94,10 +97,11 @@ const DEFAULT_CAPACITY = 5
 
 //NewTwitterApi takes an user-specific access token and secret and returns a TwitterApi struct for that user.
 //The TwitterApi struct can be used for accessing any of the endpoints available.
-func NewTwitterApi(access_token string, access_token_secret string) *TwitterApi {
+func NewTwitterApi(access_token string, access_token_secret string, ctx appengine.Context) *TwitterApi {
 	//TODO figure out how much to buffer this channel
 	//A non-buffered channel will cause blocking when multiple queries are made at the same time
 	queue := make(chan query)
+
 	c := &TwitterApi{
 		Credentials: &oauth.Credentials{
 			Token:  access_token,
@@ -106,7 +110,9 @@ func NewTwitterApi(access_token string, access_token_secret string) *TwitterApi 
 		queryQueue:           queue,
 		bucket:               nil,
 		returnRateLimitError: false,
-		HttpClient:           http.DefaultClient,
+		HttpClient:           &http.Client{
+            Transport: &urlfetch.Transport{ Context: ctx },
+        },
 		Log:                  silentLogger{},
 	}
 	go c.throttledQuery()
